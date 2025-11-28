@@ -18,30 +18,56 @@ DATA_PATH = os.path.join("data", "alunos.csv")
 
 def generate_synthetic(n=2000, seed=RANDOM_STATE):
     np.random.seed(seed)
+
     df = pd.DataFrame({
         "idade": np.random.randint(17, 36, size=n),
         "sexo": np.random.choice(["M", "F"], size=n, p=[0.45, 0.55]),
         "tipo_escola_medio": np.random.choice(["publica", "privada"], size=n, p=[0.7, 0.3]),
+
         "nota_enem": np.clip(np.random.normal(600, 100, n), 200, 1000),
-        "renda_familiar": np.clip(np.random.exponential(2.0, n), 0.1, 20.0),
-        "trabalha": np.random.choice([0,1], size=n, p=[0.6, 0.4]),
-        "horas_trabalho_semana": lambda s: np.where(s["trabalha"]==1, np.random.randint(5,60,size=n), 0),
         "cra_1_sem": np.clip(np.random.normal(6.0, 1.5, n), 0, 10),
-        "reprovacoes_1_sem": np.random.poisson(0.3, n),
-        "bolsista": np.random.choice([0,1], size=n, p=[0.8, 0.2]),
-        "distancia_campus_km": np.clip(np.random.exponential(5, n), 0, 100),
+        "reprovacoes_1_sem": np.random.poisson(0.4, n),
+
+        "renda_familiar": np.clip(np.random.exponential(2.5, n), 0.1, 20.0),
+        "bolsista": np.random.choice([0, 1], size=n, p=[0.75, 0.25]),
+
+        "trabalha": np.random.choice([0, 1], size=n, p=[0.55, 0.45]),
+        "distancia_campus_km": np.clip(np.random.exponential(7, n), 0, 80),
     })
-    df["horas_trabalho_semana"] = df.apply(lambda row: np.random.randint(5,60) if row["trabalha"]==1 else 0, axis=1)
-    p = (
-        0.15*(df["trabalha"]) +
-        0.2*(df["reprovacoes_1_sem"]) +
-        0.2*(df["distancia_campus_km"]>20).astype(int) -
-        0.25*(df["cra_1_sem"]/10) -
-        0.1*(df["bolsista"]) +
-        np.random.normal(0, 0.1, n)
+
+    df["horas_trabalho_semana"] = df.apply(
+        lambda row: np.random.randint(10, 45) if row["trabalha"] == 1 else 0,
+        axis=1
     )
-    p = 1/(1+np.exp(- (p*2))) 
+
+    p = (
+        -0.55 * (df["cra_1_sem"] - 5) +
+        0.45 * df["reprovacoes_1_sem"] +
+
+        -0.20 * df["renda_familiar"] +
+        -0.25 * df["bolsista"] +
+
+        0.40 * df["trabalha"] +
+        0.015 * df["horas_trabalho_semana"] +
+
+        0.03 * df["distancia_campus_km"] +
+
+        0.60 * (
+            (df["cra_1_sem"] < 5).astype(int)
+            * (df["trabalha"] == 1).astype(int)
+        ) +
+        0.45 * (
+            (df["distancia_campus_km"] > 25).astype(int)
+            * (df["renda_familiar"] < 2).astype(int)
+        ) +
+
+        np.random.normal(0, 0.05, n)
+    )
+
+    p = 1 / (1 + np.exp(-p * 0.8))
+
     df["evasao_ate_1ano"] = (np.random.rand(n) < p).astype(int)
+
     return df
 
 def load_data():
